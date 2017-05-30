@@ -1,0 +1,166 @@
+# Treemap
+
+## Model
+
+### Initial model
+```
+commit
+  bar =
+    [#node title: "Bar" sort: 0 children:
+      [#node title: "Qux" sort: 0]
+      [#node title: "Bee" sort: 1]
+    ]
+  [#node title: "Foo" sort: 0 children:
+    (bar
+    [#node title: "Baz" sort: 1])
+  ]
+  [#session maximized: bar]
+```
+
+### Parent
+```
+search
+  node = [#node]
+  parent = [#node children: node]
+
+bind
+  node.parent := parent
+```
+
+### Ancestors
+```
+search
+  node = [#node]
+
+bind
+  node.ancestors += [#ancestor node: node level: 0]
+```
+
+```
+search
+  node = [#node parent]
+
+bind
+  node.ancestors += [#ancestor node: parent level: 1]
+```
+
+```
+search
+  node = [#node]
+  ancestors = node.parent.ancestors
+
+bind
+  node.ancestors += [#ancestor node: ancestors.node level: ancestors.level + 1]
+```
+
+## View
+
+```
+commit
+  [#ui/link rel: "stylesheet" href: "/assets/css/treemap.css"]
+```
+
+### Nodes
+```
+search
+  [#session maximized]
+  node = [#node sort ancestors: [#ancestor node: maximized]]
+
+bind
+  [#html/element tagname: "details" #node-view node: node class: "node" sort: sort children:
+    [#html/element tagname: "summary" children:
+      [#ui/span #title-view node: node class: "title"]
+    ]
+  ]
+```
+
+### Node title
+```
+search
+  node = [#node title]
+  title-view = [#title-view node: node]
+
+bind
+  title-view.children := [#ui/span text: title]
+```
+
+### Node children
+```
+search
+  node = [#node children]
+  node-view = [#node-view node: node]
+  children-view = [#node-view node: children]
+
+bind
+  node-view.children += children-view
+```
+
+### Maximized node
+```
+search
+  [#session maximized]
+  ancestor = maximized.ancestors
+  not(ancestor.level = 0)
+  ancestor-title = ancestor.node.title
+  ancestor-title-sort = -1 * ancestor.level
+  node-view = [#node-view node: maximized]
+  title-view = [#title-view node: maximized]
+
+bind
+  node-view.class += "maximized"
+  node-view.open := "open"
+  title-view.children +=
+    [#ui/span sort: ancestor-title-sort children:
+      [#ui/span class: "breadcrumb" maximize-node: ancestor.node text: ancestor-title sort: 0]
+      [#ui/span text: " > " sort: 1]
+    ]
+```
+
+### Not maximized node
+```
+search
+  [#session maximized]
+  node = [#node]
+  not(node = maximized)
+  title-view = [#title-view node: node]
+
+bind
+  title-view.children += [#ui/span text: "+" class: "maximizer" maximize-node: node]
+```
+
+## Key combination
+
+```
+commit
+  [#key-combination]
+```
+
+```
+search
+  key-combination = [#key-combination]
+  [#html/event/keydown key]
+
+commit
+  key-combination.keys += key
+```
+
+```
+search
+  key-combination = [#key-combination]
+  [#html/event/keyup key]
+
+commit
+  key-combination.keys := none
+```
+
+## Navigation
+### Maximize
+```
+search
+  [#html/event/click element]
+  element = [maximize-node: node-to-maximize]
+  session = [#session]
+
+commit
+  session.maximized := node-to-maximize
+```
